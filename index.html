@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     <div class="background-blobs">
@@ -43,10 +45,52 @@
                 <p>Advanced predictive analytics for revenue growth</p>
             </div>
             <div class="user-profile">
+                <button class="btn-export" id="export-pdf">📥 Export PDF</button>
                 <div class="notification-bell">🔔</div>
                 <div class="avatar">JS</div>
             </div>
         </header>
+
+        <section class="config-section">
+            <div class="card upload-card">
+                <div id="dropzone" class="dropzone">
+                    <span class="upload-icon">📁</span>
+                    <p>Drag & Drop Sales CSV or <strong>Browse</strong></p>
+                    <input type="file" id="csv-upload" hidden accept=".csv">
+                </div>
+            </div>
+            <div class="card settings-card">
+                <h3>Forecast Settings</h3>
+                <div class="setting-item">
+                    <label>Duration</label>
+                    <select id="forecast-period">
+                        <option value="7">7 Days</option>
+                        <option value="30" selected>30 Days</option>
+                        <option value="90">90 Days</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>Model</label>
+                    <select id="model-select">
+                        <option value="rf">Random Forest</option>
+                        <option value="lr">Linear Regression</option>
+                    </select>
+                </div>
+                <button id="train-btn" class="btn-primary">Train Model</button>
+            </div>
+            <div class="card model-status-card">
+                <h3>Model Intelligence</h3>
+                <div class="status-metric">
+                    <span>Model:</span>
+                    <strong id="active-model-name">Prophet (Simulated)</strong>
+                </div>
+                <div class="status-metric">
+                    <span>R² Score:</span>
+                    <strong id="accuracy-score">94.8%</strong>
+                </div>
+                <div id="loading-spinner" class="spinner" style="display: none;"></div>
+            </div>
+        </section>
 
         <section class="stats-grid">
             <div class="stat-card">
