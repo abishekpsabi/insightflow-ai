@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsightFlow AI | Predictive Sales Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">📊</span>
+            <h1>InsightFlow AI</h1>
+        </div>
+        <nav>
+            <a href="#" class="active">
+                <span class="nav-icon">📈</span> Sales Forecast
+            </a>
+            <a href="#">
+                <span class="nav-icon">👥</span> Customer Churn
+            </a>
+            <a href="#">
+                <span class="nav-icon">💼</span> Business Intelligence
+            </a>
+            <a href="#">
+                <span class="nav-icon">⚙️</span> Settings
+            </a>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <header>
+            <div class="header-text">
+                <h2>Sales Forecasting</h2>
+                <p>Advanced predictive analytics for revenue growth</p>
+            </div>
+            <div class="user-profile">
+                <div class="notification-bell">🔔</div>
+                <div class="avatar">JS</div>
+            </div>
+        </header>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-info">
+                    <span class="stat-label">Total Projected Revenue (30d)</span>
+                    <h3 id="projected-revenue">$0.00</h3>
+                </div>
+                <div class="stat-trend positive">+12.5%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <span class="stat-label">Avg. Daily Forecast</span>
+                    <h3 id="avg-daily">$0.00</h3>
+                </div>
+                <div class="stat-chart-mini"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <span class="stat-label">Confidence Score</span>
+                    <h3>94.8%</h3>
+                </div>
+                <div class="stat-progress">
+                    <div class="progress-bar" style="width: 94%"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="main-chart-container">
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h3>Revenue Forecast vs Historical</h3>
+                    <div class="chart-legend">
+                        <span class="legend-item"><span class="dot historical"></span> Historical</span>
+                        <span class="legend-item"><span class="dot forecast"></span> Predicted</span>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="details-grid">
+            <div class="card">
+                <h3>Insights & Recommendations</h3>
+                <ul class="insights-list">
+                    <li>
+                        <span class="insight-icon">🔥</span>
+                        <div class="insight-content">
+                            <strong>Weekend Surge Expected</strong>
+                            <p>Forecast shows a 20% uptick in sales over the next two weekends.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="insight-icon">📉</span>
+                        <div class="insight-content">
+                            <strong>Mid-Month Dip</strong>
+                            <p>Historical trends suggest a minor slowdown around June 15th.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Top Growth Drivers</h3>
+                <div class="driver-item">
+                    <span>Email Marketing</span>
+                    <div class="driver-bar-wrapper">
+                        <div class="driver-bar" style="width: 85%"></div>
+                    </div>
+                    <span>85%</span>
+                </div>
+                <div class="driver-item">
+                    <span>Social Media Ads</span>
+                    <div class="driver-bar-wrapper">
+                        <div class="driver-bar" style="width: 62%"></div>
+                    </div>
+                    <span>62%</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
