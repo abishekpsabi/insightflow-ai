@@ -8,9 +8,11 @@ async function init() {
     document.getElementById('accuracy-score').textContent = "Loading Engine...";
     
     try {
+        log("Booting Python environment...");
         pyodide = await loadPyodide();
+        log("Environment mounted. Installing packages...");
         await pyodide.loadPackage(['pandas', 'scikit-learn', 'numpy']);
-        console.log("ML Engine Ready.");
+        log("All systems online. Ready to forecast.");
         document.getElementById('accuracy-score').textContent = "Ready";
         document.getElementById('active-model-name').textContent = "None Selected";
     } catch (e) {
@@ -109,6 +111,7 @@ async function runMLForecast() {
     document.getElementById('loading-spinner').style.display = 'block';
     document.getElementById('train-btn').disabled = true;
     document.getElementById('train-btn').textContent = "Training...";
+    log(`Initializing ${modelType === 'rf' ? 'Random Forest' : 'Linear Regression'}...`);
 
     // The Python Script
     const pythonCode = `
@@ -168,14 +171,20 @@ result
         pyodide.globals.set("model_type", modelType);
         pyodide.globals.set("forecast_days", days);
         
+        log("Parsing dataset...");
         const output = await pyodide.runPythonAsync(pythonCode);
+        log("Training model on device...");
         const result = output.toJs({dict_converter: Object.fromEntries});
         
+        log("Model fit complete. Generating dashboard...");
         updateDashboard(result);
         generateRecommendations(result);
+        log("Success! Data updated.");
     } catch (e) {
         console.error("ML Error:", e);
-        alert("Error processing CSV. Please ensure it has 'Date' and 'Sales' columns.");
+        const errorMsg = e.message.split('\n')[0];
+        log(`System Error: ${errorMsg}`);
+        alert(`Error processing CSV. Check the log for details.\n\nHint: Ensure your file has 'Date' and 'Sales' columns.`);
     } finally {
         document.getElementById('loading-spinner').style.display = 'none';
         document.getElementById('train-btn').disabled = false;
@@ -268,12 +277,24 @@ function generateRecommendations(data) {
 
 async function loadDefaultData() {
     try {
+        log("Fetching default data...");
         const response = await fetch('data/historical_sales.csv');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         rawCsvData = await response.text();
-        console.log("Default data loaded.");
+        log("Default dataset loaded and ready.");
+        document.getElementById('dropzone').querySelector('p').textContent = `Ready: historical_sales.csv`;
     } catch (e) {
-        console.warn("Could not load default data.");
+        log(`Warning: Failed to load default data (${e.message})`);
+        console.warn("Could not load default data:", e);
     }
+}
+
+function log(msg) {
+    const logEl = document.getElementById('process-log');
+    const span = document.createElement('span');
+    span.textContent = `> ${msg}`;
+    logEl.appendChild(span);
+    logEl.scrollTop = logEl.scrollHeight;
 }
 
 // Start the engine
