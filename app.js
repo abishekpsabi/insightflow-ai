@@ -17,6 +17,7 @@ async function init() {
         document.getElementById('active-model-name').textContent = "None Selected";
     } catch (e) {
         console.error("Pyodide failed to load:", e);
+        log("Engine Error: " + e.message);
         document.getElementById('accuracy-score').textContent = "Engine Error";
     } finally {
         document.getElementById('loading-spinner').style.display = 'none';
@@ -95,13 +96,14 @@ function handleFile(file) {
     reader.onload = (e) => {
         rawCsvData = e.target.result;
         document.getElementById('dropzone').querySelector('p').textContent = `File Loaded: ${file.name}`;
+        log(`File loaded: ${file.name}`);
     };
     reader.readAsText(file);
 }
 
 async function runMLForecast() {
     if (!rawCsvData) {
-        alert("Please upload a CSV file first.");
+        alert("Please upload a CSV file first or wait for default data to load.");
         return;
     }
 
@@ -113,7 +115,6 @@ async function runMLForecast() {
     document.getElementById('train-btn').textContent = "Training...";
     log(`Initializing ${modelType === 'rf' ? 'Random Forest' : 'Linear Regression'}...`);
 
-    // The Python Script
     const pythonCode = `
 import pandas as pd
 import numpy as np
@@ -124,7 +125,46 @@ from sklearn.metrics import r2_score
 
 # Load data
 data = pd.read_csv(StringIO(raw_csv))
-data['Date'] = pd.to_datetime(data['Date'])
+
+# Auto-detect column names (case-insensitive)
+col_map = {c.lower().strip(): c for c in data.columns}
+
+# Find date column
+date_col = None
+for candidate in ['date', 'dates', 'day', 'time', 'month', 'year', 'period']:
+    if candidate in col_map:
+        date_col = col_map[candidate]
+        break
+if date_col is None:
+    for c in data.columns:
+        try:
+            pd.to_datetime(data[c].head(3))
+            date_col = c
+            break
+        except:
+            pass
+
+# Find sales column
+sales_col = None
+for candidate in ['sales', 'sale', 'revenue', 'amount', 'value', 'price', 'total', 'income']:
+    if candidate in col_map:
+        sales_col = col_map[candidate]
+        break
+if sales_col is None:
+    for c in data.columns:
+        if c != date_col and pd.api.types.is_numeric_dtype(data[c]):
+            sales_col = c
+            break
+
+if date_col is None or sales_col is None:
+    raise ValueError(f"Could not find Date/Sales columns. Columns found: {list(data.columns)}")
+
+# Rename for consistency
+data = data.rename(columns={date_col: 'Date', sales_col: 'Sales'})
+data['Sales'] = pd.to_numeric(data['Sales'], errors='coerce').fillna(0)
+data['Date'] = pd.to_datetime(data['Date'], infer_datetime_format=True)
+data = data.sort_values('Date').reset_index(drop=True)
+
 data['DayIndex'] = (data['Date'] - data['Date'].min()).dt.days
 data['IsWeekend'] = data['Date'].dt.dayofweek.apply(lambda x: 1 if x >= 5 else 0)
 
@@ -147,12 +187,11 @@ score = r2_score(y, model.predict(X))
 last_day = data['DayIndex'].max()
 future_indices = np.arange(last_day + 1, last_day + 1 + forecast_days)
 future_dates = pd.date_range(start=data['Date'].max() + pd.Timedelta(days=1), periods=forecast_days)
-future_is_weekend = future_dates.dayofweek.apply(lambda x: 1 if x >= 5 else 0)
+future_is_weekend = future_dates.dayofweek.map(lambda x: 1 if x >= 5 else 0)
 
 X_future = pd.DataFrame({'DayIndex': future_indices, 'IsWeekend': future_is_weekend})
 predictions = model.predict(X_future)
 
-# Prepare result
 result = {
     "dates": future_dates.strftime('%Y-%m-%d').tolist(),
     "sales": predictions.round(2).tolist(),
@@ -184,7 +223,7 @@ result
         console.error("ML Error:", e);
         const errorMsg = e.message.split('\n')[0];
         log(`System Error: ${errorMsg}`);
-        alert(`Error processing CSV. Check the log for details.\n\nHint: Ensure your file has 'Date' and 'Sales' columns.`);
+        alert(`Error: ${errorMsg}\n\nHint: Ensure your CSV has a Date column and a numeric Sales column.`);
     } finally {
         document.getElementById('loading-spinner').style.display = 'none';
         document.getElementById('train-btn').disabled = false;
@@ -197,7 +236,6 @@ function updateDashboard(data) {
     document.getElementById('avg-daily').textContent = `$${data.avg_daily.toLocaleString()}`;
     document.getElementById('accuracy-score').textContent = data.accuracy;
     document.getElementById('active-model-name').textContent = data.model_name;
-
     updateChart(data);
 }
 
@@ -205,6 +243,10 @@ function updateChart(data) {
     const ctx = document.getElementById('salesChart').getContext('2d');
     
     if (salesChart) salesChart.destroy();
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
+    gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
 
     salesChart = new Chart(ctx, {
         type: 'line',
@@ -215,6 +257,8 @@ function updateChart(data) {
                     label: 'Historical',
                     data: [...data.history_sales, ...new Array(data.sales.length).fill(null)],
                     borderColor: '#94a3b8',
+                    borderWidth: 2,
+                    pointRadius: 0,
                     tension: 0.3,
                     fill: false
                 },
@@ -222,19 +266,34 @@ function updateChart(data) {
                     label: 'Forecast',
                     data: [...new Array(data.history_sales.length - 1).fill(null), data.history_sales[data.history_sales.length-1], ...data.sales],
                     borderColor: '#6366f1',
+                    borderWidth: 3,
                     borderDash: [5, 5],
+                    pointRadius: 4,
+                    pointBackgroundColor: '#6366f1',
                     tension: 0.3,
                     fill: true,
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)'
+                    backgroundColor: gradient
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleColor: '#fff',
+                    bodyColor: '#94a3b8',
+                    padding: 12,
+                    borderRadius: 8,
+                    displayColors: false
+                }
+            },
             scales: {
-                y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
+                y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', padding: 10 } },
                 x: { grid: { display: false }, ticks: { color: '#94a3b8', maxTicksLimit: 10 } }
             }
         }
@@ -243,22 +302,28 @@ function updateChart(data) {
 
 function generateRecommendations(data) {
     const list = document.querySelector('.insights-list');
-    list.innerHTML = ""; // Clear existing
+    list.innerHTML = "";
 
-    // Simple AI logic for recommendations
     const maxForecast = Math.max(...data.sales);
     const maxDate = data.dates[data.sales.indexOf(maxForecast)];
+    const minForecast = Math.min(...data.sales);
+    const minDate = data.dates[data.sales.indexOf(minForecast)];
     
     const recommendations = [
         {
             icon: '🚀',
             title: 'Peak Performance Predicted',
-            text: `Expect highest revenue on ${maxDate}. Prepare inventory for $${maxForecast.toLocaleString()} peak.`
+            text: `Expect highest revenue of $${maxForecast.toLocaleString()} on ${maxDate}. Prepare inventory and staff accordingly.`
+        },
+        {
+            icon: '📉',
+            title: 'Low Period Alert',
+            text: `Sales may dip to $${minForecast.toLocaleString()} around ${minDate}. Consider promotions to offset the slowdown.`
         },
         {
             icon: '💡',
-            title: 'Budget Allocation',
-            text: `Model suggests a ${data.accuracy} confidence level. Increase ad spend by 10% during weekend peaks.`
+            title: 'AI Budget Recommendation',
+            text: `Model confidence is ${data.accuracy}. Increase weekend marketing budget by 10-15% to capture peak demand.`
         }
     ];
 
@@ -284,13 +349,14 @@ async function loadDefaultData() {
         log("Default dataset loaded and ready.");
         document.getElementById('dropzone').querySelector('p').textContent = `Ready: historical_sales.csv`;
     } catch (e) {
-        log(`Warning: Failed to load default data (${e.message})`);
+        log(`Warning: Could not load default data (${e.message}). Please upload a CSV.`);
         console.warn("Could not load default data:", e);
     }
 }
 
 function log(msg) {
     const logEl = document.getElementById('process-log');
+    if (!logEl) return;
     const span = document.createElement('span');
     span.textContent = `> ${msg}`;
     logEl.appendChild(span);
