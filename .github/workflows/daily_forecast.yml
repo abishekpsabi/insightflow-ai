@@ -19,18 +19,9 @@ jobs:
           python-version: '3.9'
 
       - name: Install Dependencies
-        run: |
-          pip install -r ai_logic/requirements.txt
+        run: pip install -r ai_logic/requirements.txt
 
       - name: Run Forecast Model
         run: |
           python ai_logic/generate_data.py
           python ai_logic/train_models.py
-
-      - name: Commit and Push Changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
-          git commit -m "Auto-update sales forecast [skip ci]" || echo "No changes to commit"
-          git push
